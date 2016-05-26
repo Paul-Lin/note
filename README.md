@@ -1,0 +1,2 @@
+# note
+programing language note~
