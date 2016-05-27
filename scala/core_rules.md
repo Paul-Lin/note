@@ -87,6 +87,192 @@ def createErrorMessage(errorCode : Int) : String = match{
  
 > 那些继承自java.lang.Object的"标准"对象则都是scala.AnyRef的子类。scala.AnyRef可以看做java.lang.Object的别名。
 
-**继承关系**
+**Any,AnyRef,AnyVal之间具体关系如下**
 
 ![](./classhierarchy.png)
+> **实现判等时候，一般推荐确保如下的约束**
+> * 如果两个对象相等，它们的散列值应该也相等;
+> * 一个对象的散列值在对象的生命周期中不应该变化;
+> * 在把对象发送到另一个JVM时，应该用两个JVM里都有的属性来相等。
+
+### 3.用None不用null
+Scala在标准库里提供了scala.Option类，鼓励大家在一般编程时尽量不要使用null。Option可以视作一个容器，里面要么有东西，要么什么都没有。Option通过两个子类来实现此含义: *Some* 和 *None*。
+
+Some表示容器里有且仅有一个东西。
+
+None表示空容器，有点类似List的Nil含义。
+
+在Java和其他允许null的语言里，null经常作为一个占位符用于返回值，表示非致命的错误，或者表示一个变量未被初始化。
+
+Scala里，你可以用Option的None子类来代表这个意思，反过来用Option的Some子类代表一个初始化了的变量或者非致命(non-fatal)的变量状态。
+
+代码清单如下：
+``` scala
+var x : Option[String] = None // 创建未初始化的字符串字面量
+
+x.get	// 访问未初始化的变量导致抛出异常
+
+x.getOrElse("default")	 // 使用带默认值的方法访问
+
+x = Some("Now Initialized")	// 用字符串初始化x
+
+x.get	// 访问初始化后的变量成功
+
+x.getOrElse("default")	// 没有使用默认值
+```
+** 不包含任何值的对象Option用None对象来构建，包含一个值的Option用Some工厂方法来创建 **
+
+Option类中的get和getOrElse方法:
+
+* get方法会尝试访问Option里保存的值,如果Option是空的则抛出异常。
+
+* getOrElse也访问Option存放的值，有则返回，否则返回其参数(作为默认值)。
+
+** 应该尽量使用getOrElse而不是get **
+
+Option工厂的应用 代码清单如下:
+``` scala
+var x : Option[String] = Option(null) // 创建一个None对象
+
+x = Option("Initialized")	// 创建一个Some对象
+```
+如果输入是null,Option工厂方法会创建一个None对象，如果输入是初始化的值，则会创建一个Some对象。
+
+#### Option高级技巧
+Option最重要的技巧是可以被当做集合看待。这意味着你可以对Option使用标准的map,flatMap,foreach等方法，还可以用在for表达式里。
+
+* 创建对象或返回默认值
+代码清单如下：
+``` scala
+def getTemporaryDirectory(tmpArg:Option[String]):java.io.File={
+    tmpArg.map(name => new java.io.File(name))
+      .filter(_ isDirectory)
+      .getOrElse(new java.io.File(System getProperty("java.io.tmpdir")))
+}
+```
+* 如果变量已初始化则执行代码块
+代码清单如下:
+``` scala
+def getForEach(): Unit ={
+    val username:Option[String]=Option(null)
+    for(name <- username){
+      println("Here never run!")
+    }
+
+    val nickname=Option("Paul")
+    for(name <- nickname){
+      println("Nickname: "+name)
+    }
+  }
+```
+* 多态判等实现
+一般来说，最好避免在需要深度判等情况下使用多态。Scala语言自身就出于这个原因不再支持case class的子类继承。
+
+代码清单如下:
+``` scala
+trait InstantaneousTime {
+  val repr:Int
+  override def equals(other:Any)=other match{
+    case that:InstantaneousTime =>
+      if(this eq that){
+        true
+      }else{
+        (that.## == this.##
+          && (repr == that.repr))
+      }
+    case _ => false
+  }
+  override def hashCode()=repr.##
+}
+
+trait Event extends InstantaneousTime{
+  val name:String
+  override def equals(other:Any)=other match{
+    case that:Event=>
+      if(this eq that){
+        true
+      }else{
+        (repr == that.repr
+          && (name == that.name))
+      }
+    case _ => false
+  }
+}
+
+object TimeEvent{
+  def main(args: Array[String]) {
+    val x=new InstantaneousTime {
+      override val repr: Int = 2
+    }
+    val y=new Event{
+      override val name: String = "TestEvent"
+      override val repr: Int = 2
+    }
+    println(x == y)	// true
+    println(y == x)	// false
+  }
+}
+```
+**Q&A: 为什么打印出来为true? **
+旧的类使用旧的判等方法，因此没检查新的name字段，我们需要在修改基类里最初的判等实现，以便考虑到子类可能希望修改判等的实现方法
+
+解决方法：在Scala里，有个scala.Equals特质能帮我们修复这个问题。Equals特质定义了一个canEqual方法，可以和标准的equals方法串联起来使用。通过让equals方法的other参数有机会直接造成判断失败，canEqual方法使子类可以跳出其父类的判等实现。为此只需要在我们的子类里覆盖canEqual方法，注入我们想要的任何判断标准。
+
+代码清单如下：
+``` scala
+trait InstantaneousTime extends Equals{
+  val repr:Int
+
+  override def canEqual(other:Any)=other.isInstanceOf[InstantaneousTime]
+
+  override def equals(other:Any)=other match{
+    case that:InstantaneousTime =>
+      if(this eq that){
+        true
+      }else{
+        (that.## == this.##
+          && (that canEqual this)
+          && (repr == that.repr))
+      }
+    case _ => false
+  }
+  override def hashCode()=repr.##
+}
+
+trait Event extends InstantaneousTime{
+  val name:String
+  override def canEqual(other:Any)=other.isInstanceOf[Event]
+
+  override def equals(other:Any)=other match{
+    case that:Event=>
+      if(this eq that){
+        true
+      }else{
+        (repr == that.repr
+          && (name == that.name))
+      }
+    case _ => false
+  }
+}
+
+object TimeEvent{
+  def main(args: Array[String]) {
+    val x=new InstantaneousTime {
+      override val repr: Int = 2
+    }
+    val y=new Event{
+      override val name: String = "TestEvent"
+      override val repr: Int = 2
+    }
+    println(x == y)	// false
+    println(y == x)	// false
+  }
+}
+```
+
+这里我们做的第一件事是在InstaneousTime里实现canEqual，当other对象也是InstantaneousTime时返回true。然后我们在equals实现里考虑到other对象的canEqual结果。最后，Event类里覆盖canEqual方法，使Event只能和其他的Event做判等。
+
+** 在覆盖父类的判等方法时，同时覆盖canEqual方法 **
+> canEqual方法是个控制杆，允许子类跳出父类的判等实现。这样子类就可以安全地覆盖父类的equals方法，而避免父类与子类的判等方法对相同的两个对象给出不同的结果。
+
+
