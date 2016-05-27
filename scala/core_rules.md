@@ -88,4 +88,5 @@ def createErrorMessage(errorCode : Int) : String = match{
 > 那些继承自java.lang.Object的"标准"对象则都是scala.AnyRef的子类。scala.AnyRef可以看做java.lang.Object的别名。
 
 **继承关系**
+
 ![](./classhierarchy.png)
