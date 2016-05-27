@@ -120,7 +120,7 @@ x.get	// 访问初始化后的变量成功
 
 x.getOrElse("default")	// 没有使用默认值
 ```
-** 不包含任何值的对象Option用None对象来构建，包含一个值的Option用Some工厂方法来创建 **
+**不包含任何值的对象Option用None对象来构建，包含一个值的Option用Some工厂方法来创建**
 
 Option类中的get和getOrElse方法:
 
@@ -128,7 +128,9 @@ Option类中的get和getOrElse方法:
 
 * getOrElse也访问Option存放的值，有则返回，否则返回其参数(作为默认值)。
 
-** 应该尽量使用getOrElse而不是get **
+
+**应该尽量使用getOrElse而不是get**
+
 
 Option工厂的应用 代码清单如下:
 ``` scala
@@ -213,7 +215,7 @@ object TimeEvent{
   }
 }
 ```
-**Q&A: 为什么打印出来为true? **
+**Q&A: 为什么打印出来为true?**
 旧的类使用旧的判等方法，因此没检查新的name字段，我们需要在修改基类里最初的判等实现，以便考虑到子类可能希望修改判等的实现方法
 
 解决方法：在Scala里，有个scala.Equals特质能帮我们修复这个问题。Equals特质定义了一个canEqual方法，可以和标准的equals方法串联起来使用。通过让equals方法的other参数有机会直接造成判断失败，canEqual方法使子类可以跳出其父类的判等实现。为此只需要在我们的子类里覆盖canEqual方法，注入我们想要的任何判断标准。
@@ -272,7 +274,7 @@ object TimeEvent{
 
 这里我们做的第一件事是在InstaneousTime里实现canEqual，当other对象也是InstantaneousTime时返回true。然后我们在equals实现里考虑到other对象的canEqual结果。最后，Event类里覆盖canEqual方法，使Event只能和其他的Event做判等。
 
-** 在覆盖父类的判等方法时，同时覆盖canEqual方法 **
+**在覆盖父类的判等方法时，同时覆盖canEqual方法**
 > canEqual方法是个控制杆，允许子类跳出父类的判等实现。这样子类就可以安全地覆盖父类的equals方法，而避免父类与子类的判等方法对相同的两个对象给出不同的结果。
 
 
