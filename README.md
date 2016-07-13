@@ -2,7 +2,8 @@
 programing language note~
 
 ---
-- [ ] [Scala](https://github.com/Paul-Lin/note/tree/master/scala)
+- [ ] [Scala](./scala)
+- [ ] [C++](./cpp)
 
 ---
 Good luck and have fun :)
